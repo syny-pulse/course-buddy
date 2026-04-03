@@ -1,11 +1,25 @@
+import os
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from models import db, Coursework
 from datetime import datetime
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///coursework.db'
+is_vercel = os.environ.get('VERCEL') == '1'
+
+# Vercel / Prisma provides POSTGRES_URL or PRISMA_DATABASE_URL
+db_url = os.environ.get('POSTGRES_URL') or os.environ.get('PRISMA_DATABASE_URL') or os.environ.get('DATABASE_URL')
+
+if is_vercel:
+    app = Flask(__name__, instance_path='/tmp/instance')
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_url or 'sqlite:////tmp/coursework.db'
+else:
+    app = Flask(__name__)
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_url or 'sqlite:///coursework.db'
+
+if app.config['SQLALCHEMY_DATABASE_URI'].startswith("postgres://"):
+    app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace("postgres://", "postgresql://", 1)
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = 'course-buddy-secret-key-2024'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'course-buddy-secret-key-2024')
 
 db.init_app(app)
 

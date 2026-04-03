@@ -1,6 +1,73 @@
 {% extends "base.html" %}
 {% block title %}{{ 'Edit Coursework' if mode == 'edit' else 'Add Coursework' }} — Course Buddy: Coursework Tracker{% endblock %}
 
+{% block head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+/* Minimal Monochrome override for Flatpickr */
+.flatpickr-calendar {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5) !important;
+  font-family: 'Nexa', -apple-system, sans-serif !important;
+  color: var(--text-primary) !important;
+}
+.flatpickr-calendar.open {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 9999 !important;
+}
+.flatpickr-calendar:before,
+.flatpickr-calendar:after {
+  display: none !important;
+}
+.flatpickr-months .flatpickr-monthDropdown-months,
+.flatpickr-months .flatpickr-monthDropdown-months option {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border) !important;
+  outline: none !important;
+  appearance: none;
+}
+.flatpickr-months .flatpickr-monthDropdown-months {
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.flatpickr-day {
+  color: var(--text-primary) !important;
+}
+.flatpickr-day.today {
+  border-color: var(--border-subtle) !important;
+}
+.flatpickr-day:hover, .flatpickr-day:focus {
+  background: var(--bg-hover) !important;
+  border-color: var(--border) !important;
+}
+.flatpickr-day.selected {
+  background: var(--text-primary) !important;
+  color: var(--bg-primary) !important;
+  border-color: var(--text-primary) !important;
+}
+.flatpickr-months .flatpickr-month, .flatpickr-months .flatpickr-prev-month, .flatpickr-months .flatpickr-next-month {
+  color: var(--text-primary) !important;
+  fill: var(--text-primary) !important;
+}
+.flatpickr-weekday {
+  color: var(--text-secondary) !important;
+}
+.flatpickr-time {
+  border-top-color: var(--border) !important;
+}
+.flatpickr-time input, .flatpickr-time .flatpickr-am-pm {
+  color: var(--text-primary) !important;
+}
+.flatpickr-time input:hover, .flatpickr-time .flatpickr-am-pm:hover {
+  background: var(--bg-hover) !important;
+}
+</style>
+{% endblock %}
 {% macro field_value(name) %}
   {%- if form_data and form_data.get(name) -%}
     {{ form_data.get(name) }}
@@ -85,12 +152,14 @@
             Deadline <span class="required" aria-hidden="true">*</span>
           </label>
           <input
-            type="datetime-local"
+            type="text"
             id="submission_deadline"
             name="submission_deadline"
             class="form-input"
             value="{{ field_value('submission_deadline') }}"
+            placeholder="Select date & time"
             required
+            autocomplete="off"
           />
         </div>
 
@@ -150,8 +219,15 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
   (function () {
+    // Initialize custom datepicker
+    flatpickr("#submission_deadline", {
+      enableTime: true,
+      dateFormat: "Y-m-d\\TH:i",
+      time_24hr: true
+    });
     const form = document.getElementById('coursework-form');
     if (!form) return;
 
