@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Course Buddy: Coursework Tracker{% endblock %}
+
+{% block content %}
+<div class="page">
+
+  <!-- Page Header -->
+  <header class="page-header">
+    <h1 class="page-title">Coursework</h1>
+    <span class="badge" aria-label="{{ total }} entries">{{ total }} {{ 'entry' if total == 1 else 'entries' }}</span>
+  </header>
+
+  <!-- Stats Row -->
+  <section class="stats-row" aria-label="Summary statistics">
+    <div class="stat-card">
+      <span class="stat-card__label">Total</span>
+      <span class="stat-card__value">{{ total }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-card__label">Pending</span>
+      <span class="stat-card__value stat-card__value--pending">{{ pending }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-card__label">Graded</span>
+      <span class="stat-card__value stat-card__value--graded">{{ graded }}</span>
+    </div>
+  </section>
+
+  <!-- Coursework List -->
+  {% if entries %}
+    <section class="card-list" aria-label="Coursework entries">
+      {% for entry in entries %}
+        <article class="cw-card" id="cw-card-{{ entry.id }}">
+
+          <!-- Top row: title + status pill -->
+          <div class="cw-card__top">
+            <h2 class="cw-card__title">{{ entry.title }}</h2>
+            <span class="status-pill status-pill--{{ entry.status }}" id="status-pill-{{ entry.id }}" aria-label="Status: {{ entry.status }}">
+              <span class="status-dot"></span>
+              {{ entry.status | capitalize }}
+            </span>
+          </div>
+
+          <!-- Course unit -->
+          <p class="cw-card__unit">{{ entry.course_unit }}</p>
+
+          <!-- Bottom row: meta + actions -->
+          <div class="cw-card__bottom">
+            <div class="cw-card__meta">
+              <!-- Deadline -->
+              <span class="meta-item {% if entry.is_overdue %}meta-item--overdue{% endif %}">
+                {{ entry.deadline_formatted }}
+                {% if entry.is_overdue %}<span aria-label="overdue"> · Overdue</span>{% endif %}
+              </span>
+
+              <!-- Marks -->
+              <span class="meta-item">
+                {% if entry.marks_awarded is not none %}
+                  <span class="marks-value">{{ entry.marks_awarded | int if entry.marks_awarded == entry.marks_awarded | int else entry.marks_awarded }}%</span>
+                {% else %}
+                  <span style="color: var(--text-muted)">—</span>
+                {% endif %}
+              </span>
+            </div>
+
+            <!-- Actions -->
+            <div class="cw-card__actions">
+              <!-- Quick status cycle -->
+              <select
+                class="action-select"
+                id="status-select-{{ entry.id }}"
+                aria-label="Change status for {{ entry.title }}"
+                onchange="updateStatus({{ entry.id }}, this.value)"
+              >
+                <option value="pending"   {% if entry.status == 'pending'   %}selected{% endif %}>Pending</option>
+                <option value="submitted" {% if entry.status == 'submitted' %}selected{% endif %}>Submitted</option>
+                <option value="graded"    {% if entry.status == 'graded'    %}selected{% endif %}>Graded</option>
+              </select>
+
+              <a href="{{ url_for('edit', id=entry.id) }}" class="btn btn--sm btn--ghost" id="edit-btn-{{ entry.id }}" aria-label="Edit {{ entry.title }}">
+                Edit
+              </a>
+
+              <form action="{{ url_for('delete', id=entry.id) }}" method="POST" id="delete-form-{{ entry.id }}" style="display: inline;">
+                <button
+                  type="submit"
+                  class="btn btn--danger btn--sm"
+                  id="delete-btn-{{ entry.id }}"
+                  aria-label="Delete {{ entry.title }}"
+                  onclick="return confirm('Delete &quot;{{ entry.title }}&quot;? This cannot be undone.');"
+                >
+                  Delete
+                </button>
+              </form>
+            </div>
+          </div>
+
+        </article>
+      {% endfor %}
+    </section>
+
+  {% else %}
+    <!-- Empty state -->
+    <div class="empty-state" id="empty-state">
+      <p class="empty-state__title">No coursework yet</p>
+      <p class="empty-state__sub">Add your first entry to start tracking submissions and deadlines.</p>
+      <a href="{{ url_for('add') }}" class="btn btn--primary" id="empty-add-btn" style="margin-top: 8px;">
+        Add Coursework
+      </a>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  async function updateStatus(id, newStatus) {
+    const pill = document.getElementById('status-pill-' + id);
+    const select = document.getElementById('status-select-' + id);
+
+    try {
+      const resp = await fetch('/update-status/' + id, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      const data = await resp.json();
+
+      if (data.success) {
+        // Update pill class and text
+        pill.className = 'status-pill status-pill--' + data.status;
+        pill.innerHTML = '<span class="status-dot"></span>' + data.status.charAt(0).toUpperCase() + data.status.slice(1);
+
+        // Brief flash animation on the card
+        const card = document.getElementById('cw-card-' + id);
+        card.style.transition = 'box-shadow 0.25s ease';
+        card.style.boxShadow = '0 0 0 2px var(--text-primary)';
+        setTimeout(() => { card.style.boxShadow = ''; }, 600);
+      } else {
+        showInlineError('Status update failed. Please try again.');
+        select.value = pill.dataset.status || newStatus;
+      }
+    } catch (err) {
+      showInlineError('Network error. Status not updated.');
+    }
+  }
+
+  function showInlineError(msg) {
+    const wrapper = document.getElementById('toast-wrapper') || createToastWrapper();
+    const toast = document.createElement('div');
+    toast.className = 'toast toast--error';
+    toast.textContent = msg;
+    wrapper.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.3s';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
+  function createToastWrapper() {
+    const w = document.createElement('div');
+    w.className = 'toast-wrapper';
+    w.id = 'toast-wrapper';
+    document.body.appendChild(w);
+    return w;
+  }
+</script>
+{% endblock %}

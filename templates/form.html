@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit Coursework' if mode == 'edit' else 'Add Coursework' }} — Course Buddy: Coursework Tracker{% endblock %}
+
+{% macro field_value(name) %}
+  {%- if form_data and form_data.get(name) -%}
+    {{ form_data.get(name) }}
+  {%- elif coursework and mode == 'edit' -%}
+    {%- if name == 'title' -%}{{ coursework.title }}
+    {%- elif name == 'course_unit' -%}{{ coursework.course_unit }}
+    {%- elif name == 'marks_awarded' -%}{{ coursework.marks_awarded if coursework.marks_awarded is not none else '' }}
+    {%- elif name == 'submission_deadline' -%}{{ coursework.deadline_input_value }}
+    {%- endif -%}
+  {%- endif -%}
+{% endmacro %}
+
+{% block content %}
+<div class="form-page">
+
+  <!-- Header -->
+  <div class="form-header">
+    <a href="{{ url_for('index') }}" class="form-header__back" id="back-link">
+      &larr; Back to Dashboard
+    </a>
+    <h1 class="form-title">
+      {{ 'Edit Coursework' if mode == 'edit' else 'Add Coursework' }}
+    </h1>
+    <p class="form-subtitle">
+      {% if mode == 'edit' %}
+        Update the details for <strong style="color: var(--text-primary);">{{ coursework.title }}</strong>.
+      {% else %}
+        Fill in the details below to track a new submission.
+      {% endif %}
+    </p>
+  </div>
+
+  <!-- Form Card -->
+  <div class="form-card">
+    <form
+      method="POST"
+      action="{{ url_for('edit', id=coursework.id) if mode == 'edit' else url_for('add') }}"
+      id="coursework-form"
+      novalidate
+    >
+
+      <!-- Title -->
+      <div class="form-group">
+        <label for="title" class="form-label">
+          Title <span class="required" aria-hidden="true">*</span>
+        </label>
+        <input
+          type="text"
+          id="title"
+          name="title"
+          class="form-input"
+          placeholder="e.g. Research Methods Essay"
+          value="{{ field_value('title') }}"
+          required
+          autocomplete="off"
+          maxlength="200"
+        />
+      </div>
+
+      <!-- Course Unit -->
+      <div class="form-group">
+        <label for="course_unit" class="form-label">
+          Course Unit <span class="required" aria-hidden="true">*</span>
+        </label>
+        <input
+          type="text"
+          id="course_unit"
+          name="course_unit"
+          class="form-input"
+          placeholder="e.g. CS101 – Intro to Programming"
+          value="{{ field_value('course_unit') }}"
+          required
+          autocomplete="off"
+          maxlength="100"
+        />
+      </div>
+
+      <!-- Deadline + Marks (two columns) -->
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="submission_deadline" class="form-label">
+            Deadline <span class="required" aria-hidden="true">*</span>
+          </label>
+          <input
+            type="datetime-local"
+            id="submission_deadline"
+            name="submission_deadline"
+            class="form-input"
+            value="{{ field_value('submission_deadline') }}"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="marks_awarded" class="form-label">Marks Awarded</label>
+          <input
+            type="number"
+            id="marks_awarded"
+            name="marks_awarded"
+            class="form-input"
+            placeholder="e.g. 78.5"
+            value="{{ field_value('marks_awarded') }}"
+            step="0.1"
+            min="0"
+            max="100"
+          />
+          <p class="form-hint">Leave blank if not yet graded.</p>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div class="form-group">
+        <label for="status" class="form-label">Status</label>
+        <div class="select-wrapper">
+          <select id="status" name="status" class="form-select">
+            <option value="pending"
+              {% if (form_data and form_data.get('status') == 'pending') or (mode == 'edit' and coursework.status == 'pending') or mode == 'add' %}
+                selected
+              {% endif %}
+            >Pending</option>
+            <option value="submitted"
+              {% if (form_data and form_data.get('status') == 'submitted') or (mode == 'edit' and coursework.status == 'submitted') %}
+                selected
+              {% endif %}
+            >Submitted</option>
+            <option value="graded"
+              {% if (form_data and form_data.get('status') == 'graded') or (mode == 'edit' and coursework.status == 'graded') %}
+                selected
+              {% endif %}
+            >Graded</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="form-actions">
+        <button type="submit" class="btn btn--primary" id="save-btn">
+          {{ 'Save Changes' if mode == 'edit' else 'Add Coursework' }}
+        </button>
+        <a href="{{ url_for('index') }}" class="btn btn--ghost" id="cancel-btn">Cancel</a>
+      </div>
+
+    </form>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    const form = document.getElementById('coursework-form');
+    if (!form) return;
+
+    form.addEventListener('submit', function (e) {
+      let valid = true;
+
+      // Clear previous invalid states
+      form.querySelectorAll('.form-input, .form-select').forEach(el => {
+        el.classList.remove('invalid');
+      });
+
+      // Validate required fields
+      const required = form.querySelectorAll('[required]');
+      required.forEach(function (field) {
+        if (!field.value.trim()) {
+          field.classList.add('invalid');
+          valid = false;
+        }
+      });
+
+      if (!valid) {
+        e.preventDefault();
+        // Focus the first invalid field
+        const first = form.querySelector('.invalid');
+        if (first) {
+          first.focus();
+          first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    });
+
+    // Remove invalid class on input
+    form.querySelectorAll('.form-input, .form-select').forEach(function (el) {
+      el.addEventListener('input', function () {
+        if (el.value.trim()) el.classList.remove('invalid');
+      });
+    });
+  })();
+</script>
+{% endblock %}
